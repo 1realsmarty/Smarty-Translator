@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Correct &amp; Translate</title>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+--bg:#f7f6f2;--card:#fff;--text:#1d1d1b;--muted:#6b6a64;--line:#dedcd3;--accent:#1f6f5c;--accent-text:#fff;--del:#b3261e;--ins:#1f6f5c}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#141413;--card:#1f1f1d;--text:#efeee9;--muted:#a09f97;--line:#3a3a36;--accent:#4fb89c;--accent-text:#0d1f1a;--del:#f2928b;--ins:#6fd0b4}}
+:root[data-theme="dark"]{--bg:#141413;--card:#1f1f1d;--text:#efeee9;--muted:#a09f97;--line:#3a3a36;--accent:#4fb89c;--accent-text:#0d1f1a;--del:#f2928b;--ins:#6fd0b4}
+html,body{margin:0}
+body{background:var(--bg);color:var(--text);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:760px;margin:0 auto;padding:24px 16px 48px}
+h1{font-size:1.6rem;margin:0 0 4px}
+.sub{color:var(--muted);margin:0 0 20px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:16px}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:end;margin-bottom:12px}
+label{display:block;font-size:.8rem;color:var(--muted);margin-bottom:4px}
+select,textarea{width:100%;box-sizing:border-box;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:10px;font:inherit}
+textarea{min-height:140px;resize:vertical}
+.grow{flex:1;min-width:150px}
+button{background:var(--accent);color:var(--accent-text);border:0;border-radius:8px;padding:11px 18px;font:inherit;font-weight:600;cursor:pointer}
+button.ghost{background:transparent;color:var(--accent);border:1px solid var(--line);padding:6px 12px;font-weight:500;font-size:.85rem}
+button:disabled{opacity:.5;cursor:default}
+.out{white-space:pre-wrap;word-break:break-word}
+.tag{display:inline-block;font-size:.75rem;color:var(--muted);border:1px solid var(--line);border-radius:99px;padding:1px 10px;margin-bottom:8px}
+h2{font-size:.95rem;margin:0 0 8px;display:flex;justify-content:space-between;align-items:center}
+ul{margin:0;padding-left:1.1rem}
+li{margin-bottom:8px}
+.old{color:var(--del);text-decoration:line-through}
+.new{color:var(--ins);font-weight:600}
+.why{color:var(--muted);font-size:.9rem}
+.err{color:var(--del)}
+.hidden{display:none}
+.rec{background:var(--del);color:#fff;border-color:transparent}
+</style>
+</head>
+<body>
+<main>
+  <h1>Correct &amp; Translate</h1>
+  <p class="sub">Write in any language. Mistakes are fixed first, then the corrected text is translated.</p>
+
+  <div class="card">
+    <div class="row">
+      <div class="grow"><label for="src">From</label>
+        <select id="src"><option>Auto-detect</option></select></div>
+      <div class="grow"><label for="tgt">To</label>
+        <select id="tgt"></select></div>
+    </div>
+    <div class="row" style="margin:0 0 4px;justify-content:space-between;align-items:center"><label for="inp" style="margin:0">Your text</label><button type="button" id="mic" class="ghost">🎤 Speak</button></div>
+    <textarea id="inp" maxlength="2000" placeholder="Type or paste text here…"></textarea>
+    <div class="row" style="margin:12px 0 0">
+      <button id="go">Correct &amp; translate</button>
+      <span id="status" class="why"></span>
+    </div>
+  </div>
+
+  <div id="res" class="hidden">
+    <div class="card"><h2>Corrected text <span><button class="ghost" data-say="cor">🔊 Listen</button> <button class="ghost" data-copy="cor">Copy</button></span></h2>
+      <span class="tag" id="detected"></span><div class="out" id="cor"></div></div>
+    <div class="card" id="chg"><h2>What was fixed</h2><ul id="list"></ul></div>
+    <div class="card"><h2>Translation <span><button class="ghost" data-say="trn">🔊 Listen</button> <button class="ghost" data-copy="trn">Copy</button></span></h2>
+      <div class="out" id="trn"></div></div>
+  </div>
+</main>
+
+<script>
+var LANGS=["English","Spanish","French","German","Italian","Portuguese","Dutch","Papiamento","Russian","Arabic","Hindi","Bengali","Chinese (Simplified)","Chinese (Traditional)","Japanese","Korean","Turkish","Polish","Swahili","Yoruba","Igbo","Hausa","Nigerian Pidgin","Indonesian","Vietnamese","Thai","Greek","Hebrew","Ukrainian","Swedish"];
+var src=document.getElementById("src"),tgt=document.getElementById("tgt"),
+inp=document.getElementById("inp"),go=document.getElementById("go"),
+st=document.getElementById("status"),res=document.getElementById("res");
+LANGS.forEach(function(l){src.add(new Option(l));var o=new Option(l);tgt.add(o);if(l==="Spanish")o.selected=true});
+
+function setText(id,t){document.getElementById(id).textContent=t==null?"":String(t)}
+
+async function translate(text,from,to){
+  var r=await fetch("/api/translate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:text,from:from,to:to})});
+  var d=await r.json().catch(function(){return {}});
+  if(!r.ok)throw new Error(d.error||"Something went wrong. Please try again.");
+  return d;
+}
+
+go.onclick=async function(){
+  var text=inp.value.trim();
+  if(!text){st.className="why";st.textContent="Enter some text first.";return}
+  go.disabled=true;st.className="why";st.textContent="Working…";
+  try{
+    var r=await translate(text,src.value,tgt.value);
+    setText("detected","Detected: "+(r.detected||"unknown"));
+    setText("cor",r.corrected);setText("trn",r.translation);
+    var ul=document.getElementById("list");ul.textContent="";
+    var ch=Array.isArray(r.changes)?r.changes:[];
+    ch.forEach(function(c){
+      var li=document.createElement("li");
+      var a=document.createElement("span");a.className="old";a.textContent=c.from==null?"":String(c.from);
+      var b=document.createElement("span");b.className="new";b.textContent=c.to==null?"":String(c.to);
+      var w=document.createElement("div");w.className="why";w.textContent=c.reason==null?"":String(c.reason);
+      li.append(a," → ",b,w);ul.append(li);
+    });
+    if(!ch.length){var li=document.createElement("li");li.className="why";li.textContent="No mistakes found.";ul.append(li)}
+    res.classList.remove("hidden");st.textContent="";
+  }catch(e){
+    st.className="why err";st.textContent=e.message||"Something went wrong. Please try again.";
+  }
+  go.disabled=false;
+};
+
+document.addEventListener("click",function(e){
+  var id=e.target.getAttribute&&e.target.getAttribute("data-copy");
+  if(!id)return;
+  var t=document.getElementById(id).textContent;
+  try{navigator.clipboard.writeText(t);e.target.textContent="Copied"}catch(x){e.target.textContent="Select to copy"}
+  setTimeout(function(){e.target.textContent="Copy"},1500);
+});
+
+(function(){
+var CODES={"English":"en-US","Spanish":"es-ES","French":"fr-FR","German":"de-DE","Italian":"it-IT","Portuguese":"pt-PT","Dutch":"nl-NL","Papiamento":"nl-NL","Russian":"ru-RU","Arabic":"ar-SA","Hindi":"hi-IN","Bengali":"bn-BD","Chinese (Simplified)":"zh-CN","Chinese (Traditional)":"zh-TW","Japanese":"ja-JP","Korean":"ko-KR","Turkish":"tr-TR","Polish":"pl-PL","Swahili":"sw-KE","Yoruba":"yo-NG","Igbo":"ig-NG","Hausa":"ha-NG","Nigerian Pidgin":"en-NG","Indonesian":"id-ID","Vietnamese":"vi-VN","Thai":"th-TH","Greek":"el-GR","Hebrew":"he-IL","Ukrainian":"uk-UA","Swedish":"sv-SE"};
+function say(id){
+  if(!("speechSynthesis" in window)){st.className="why err";st.textContent="Read-aloud isn’t supported in this browser.";return}
+  var text=document.getElementById(id).textContent;if(!text)return;
+  var name=id==="trn"?tgt.value:(src.value==="Auto-detect"?document.getElementById("detected").textContent.replace("Detected: ",""):src.value);
+  var lang=CODES[name]||"";
+  speechSynthesis.cancel();
+  var u=new SpeechSynthesisUtterance(text);
+  if(lang){
+    u.lang=lang;
+    var vs=speechSynthesis.getVoices(),pre=lang.slice(0,2);
+    var ok=vs.length===0||vs.some(function(v){return v.lang.toLowerCase().indexOf(pre)===0});
+    if(!ok){st.className="why err";st.textContent="This device has no "+name+" voice installed.";return}
+  }
+  st.className="why";
+  st.textContent=name==="Papiamento"?"Using a Dutch voice for Papiamento, so the pronunciation may sound off.":"";
+  speechSynthesis.speak(u);
+}
+var SR=window.SpeechRecognition||window.webkitSpeechRecognition,mic=document.getElementById("mic"),rec=null,on=false;
+if(!SR)mic.classList.add("hidden");
+mic.onclick=function(){
+  if(on){if(rec)rec.stop();return}
+  var name=src.value,lang=name==="Auto-detect"?(navigator.language||"en-US"):(CODES[name]||"en-US");
+  rec=new SR();rec.lang=lang;rec.interimResults=true;rec.continuous=true;
+  var base=inp.value?inp.value.replace(/\s*$/," "):"";
+  rec.onresult=function(e){var t="";for(var i=0;i<e.results.length;i++)t+=e.results[i][0].transcript;inp.value=base+t};
+  rec.onerror=function(e){st.className="why err";st.textContent=(e.error==="not-allowed"||e.error==="service-not-allowed")?"Microphone access is blocked. You can still type your text.":"Voice input stopped ("+e.error+")."};
+  rec.onend=function(){on=false;mic.textContent="🎤 Speak";mic.classList.remove("rec")};
+  try{
+    rec.start();on=true;mic.textContent="⏹ Stop";mic.classList.add("rec");st.className="why";
+    st.textContent=name==="Auto-detect"?"Listening in "+lang+". Pick a source language to dictate in another one.":name==="Papiamento"?"Listening with a Dutch model. Browsers don’t support Papiamento dictation, so expect errors.":"Listening…";
+  }catch(x){}
+};
+document.addEventListener("click",function(e){var id=e.target.getAttribute&&e.target.getAttribute("data-say");if(id)say(id)});
+})();
+</script>
+</body>
+</html>
