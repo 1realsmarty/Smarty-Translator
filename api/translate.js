@@ -47,31 +47,51 @@ module.exports = async function handler(req, res) {
     'Return ONLY JSON: {"detected":"language name","corrected":"corrected text","changes":[{"from":"original fragment","to":"fixed fragment","reason":"short reason in English"}],"translation":"translated text"}. ' +
     "Use an empty changes array if nothing needed fixing. Keep line breaks.\n\nTEXT:\n" + text;
 
-  const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
-  const url = "https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(model) + ":generateContent";
+  // Try the main model, retry once if Google is busy (503/500/504),
+  // then fall back to a second model.
+  const primary = process.env.GEMINI_MODEL || "gemini-3.5-flash";
+  const fallback = process.env.GEMINI_FALLBACK_MODEL || "gemini-flash-latest";
+  const attempts = [primary, primary];
+  if (fallback !== primary) attempts.push(fallback);
 
+  const body = JSON.stringify({
+    contents: [{ parts: [{ text: prompt }] }],
+    generationConfig: { responseMimeType: "application/json", temperature: 0.2 },
+  });
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const BUSY = [500, 503, 504];
+
+  let lastStatus = 0;
   try {
-    const r = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-goog-api-key": key },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { responseMimeType: "application/json", temperature: 0.2 },
-      }),
-    });
+    for (let i = 0; i < attempts.length; i++) {
+      const url =
+        "https://generativelanguage.googleapis.com/v1beta/models/" +
+        encodeURIComponent(attempts[i]) + ":generateContent";
+      const r = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-goog-api-key": key },
+        body,
+      });
+      lastStatus = r.status;
 
-    if (r.status === 429) {
-      return res.status(429).json({ error: "The free translation quota is used up for now. Try again later." });
+      if (r.status === 429) {
+        return res.status(429).json({ error: "The free translation quota is used up for now. Try again later." });
+      }
+      if (r.ok) {
+        const data = await r.json();
+        const parts = (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts) || [];
+        const raw = parts.map((p) => p.text || "").join("");
+        const parsed = JSON.parse(raw.replace(/```json|```/g, "").trim());
+        return res.status(200).json(parsed);
+      }
+      // Busy or model not found: wait briefly and try the next attempt
+      if (BUSY.includes(r.status) || r.status === 404) {
+        if (i < attempts.length - 1) await sleep(700);
+        continue;
+      }
+      break;
     }
-    if (!r.ok) {
-      return res.status(502).json({ error: "The translation service returned an error (" + r.status + ")." });
-    }
-
-    const data = await r.json();
-    const parts = (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts) || [];
-    const raw = parts.map((p) => p.text || "").join("");
-    const parsed = JSON.parse(raw.replace(/```json|```/g, "").trim());
-    return res.status(200).json(parsed);
+    return res.status(502).json({ error: "The translation service is busy right now (" + lastStatus + "). Please try again." });
   } catch (e) {
     return res.status(502).json({ error: "Could not read the translation. Please try again." });
   }
