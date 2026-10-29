@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Tikitaka">
+<meta name="theme-color" content="#ffffff">
+<title>Tikitaka – Accurate translator</title>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+--bg:#fff;--card:#d9e6f7;--blue:#418de0;--text:#111;--muted:#777;--del:#d32f2f;--ins:#1faa3a;--ghost:#1a3f7a}
+html,body{margin:0}
+body{background:var(--bg);color:var(--text);font:16px/1.4 Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:520px;margin:0 auto;padding:28px 20px 48px}
+header{display:flex;align-items:center;gap:10px}
+header img{height:40px}
+h1{font-size:34px;margin:0;font-weight:700}
+.sub{margin:6px 0 16px;font-size:17px}
+.card{background:var(--card);border-radius:12px;padding:18px 24px;margin-bottom:8px}
+.row{display:flex;gap:14px}
+.grow{flex:1;min-width:0}
+label{display:block;font-size:14px;margin:0 0 8px}
+select{width:100%;height:36px;border:0;border-radius:10px;background:var(--blue);color:#fff;font:inherit;font-size:16px;padding:0 14px;appearance:none;-webkit-appearance:none}
+textarea{width:100%;box-sizing:border-box;height:132px;border:0;border-radius:10px;background:var(--blue);color:#fff;font:inherit;font-size:17px;padding:12px;box-shadow:0 2px 6px rgba(0,0,0,.2);resize:none}
+textarea::placeholder{color:rgba(255,255,255,.7)}
+textarea:focus{outline:2px solid #fff}
+button{background:var(--blue);color:#fff;border:0;border-radius:14px;height:48px;min-width:116px;padding:0 20px;font:inherit;font-size:17px;cursor:pointer}
+button.ghost{background:transparent;color:var(--ghost);border:1px solid var(--blue);border-radius:8px;height:28px;min-width:0;padding:0 14px;font-size:14px}
+button.rec{background:var(--del);color:#fff;border-color:transparent}
+button:disabled{opacity:.5;cursor:default}
+.actions{display:flex;justify-content:space-between;align-items:flex-end;margin-top:16px}
+h2{font-size:17px;margin:0 0 12px;font-weight:700}
+.hd{display:flex;justify-content:space-between;align-items:flex-start}
+.hd span{display:flex;gap:8px}
+.out{font-size:17px;white-space:pre-wrap;word-break:break-word;margin:0 0 14px}
+.det{color:var(--muted);font-size:13px;margin:-8px 0 8px}
+ul{margin:0;padding-left:20px}
+li{margin-bottom:8px;font-size:14px}
+.old,.new{font-size:17px}
+.old{color:var(--del);text-decoration:line-through}
+.new{color:var(--ins)}
+.why{font-size:14px}
+#status{margin-top:10px;font-size:14px}
+.err{color:var(--del)}
+.hidden{display:none}
+</style>
+</head>
+<body>
+<main>
+  <header><img alt="" src="data:image/png;base64,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"><h1>Tikitaka</h1></header>
+  <p class="sub">Accurate translator</p>
+
+  <div class="card">
+    <div class="row">
+      <div class="grow"><label for="src">From</label>
+        <select id="src"><option>Auto-detect</option></select></div>
+      <div class="grow"><label for="tgt">To</label>
+        <select id="tgt"></select></div>
+    </div>
+    <label for="inp" style="margin-top:16px">Your text</label>
+    <textarea id="inp" maxlength="2000"></textarea>
+    <div class="actions">
+      <button id="go">Translate</button>
+      <button type="button" id="mic" class="ghost">Speak</button>
+    </div>
+    <div id="status" class="why"></div>
+  </div>
+
+  <div id="res" class="hidden">
+    <div class="card"><h2>Translation</h2>
+      <div class="out" id="trn"></div>
+      <button data-copy="trn">Copy</button></div>
+    <div class="card"><div class="hd"><h2>Correction</h2><span><button class="ghost" data-say="cor">Listen</button><button class="ghost" data-copy="cor">Copy</button></span></div>
+      <div class="det" id="detected"></div><div class="out" id="cor" style="margin:0"></div></div>
+    <div class="card" id="chg"><h2>What I fixed</h2><ul id="list"></ul></div>
+  </div>
+</main>
+
+<script>
+var LANGS=["English","Spanish","French","German","Italian","Portuguese","Dutch","Papiamento","Russian","Arabic","Hindi","Bengali","Chinese (Simplified)","Chinese (Traditional)","Japanese","Korean","Turkish","Polish","Swahili","Yoruba","Igbo","Hausa","Nigerian Pidgin","Indonesian","Vietnamese","Thai","Greek","Hebrew","Ukrainian","Swedish"];
+var src=document.getElementById("src"),tgt=document.getElementById("tgt"),
+inp=document.getElementById("inp"),go=document.getElementById("go"),
+st=document.getElementById("status"),res=document.getElementById("res");
+LANGS.forEach(function(l){src.add(new Option(l));var o=new Option(l);tgt.add(o);if(l==="English")o.selected=true});
+
+function setText(id,t){document.getElementById(id).textContent=t==null?"":String(t)}
+
+async function translate(text,from,to){
+  var r=await fetch("/api/translate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:text,from:from,to:to})});
+  var d=await r.json().catch(function(){return {}});
+  if(!r.ok)throw new Error(d.error||"Something went wrong. Please try again.");
+  return d;
+}
+
+go.onclick=async function(){
+  var text=inp.value.trim();
+  if(!text){st.className="why";st.textContent="Enter some text first.";return}
+  go.disabled=true;st.className="why";st.textContent="Working…";
+  try{
+    var r=await translate(text,src.value,tgt.value);
+    setText("detected","Detected: "+(r.detected||"unknown"));
+    setText("cor",r.corrected);setText("trn",r.translation);
+    var ul=document.getElementById("list");ul.textContent="";
+    var ch=Array.isArray(r.changes)?r.changes:[];
+    ch.forEach(function(c){
+      var li=document.createElement("li");
+      var a=document.createElement("span");a.className="old";a.textContent=c.from==null?"":String(c.from);
+      var b=document.createElement("span");b.className="new";b.textContent=c.to==null?"":String(c.to);
+      var w=document.createElement("div");w.className="why";w.textContent=c.reason==null?"":String(c.reason);
+      li.append(a," → ",b,w);ul.append(li);
+    });
+    if(!ch.length){var li=document.createElement("li");li.className="why";li.textContent="No mistakes found.";ul.append(li)}
+    res.classList.remove("hidden");st.textContent="";
+  }catch(e){
+    st.className="why err";st.textContent=e.message||"Something went wrong. Please try again.";
+  }
+  go.disabled=false;
+};
+
+document.addEventListener("click",function(e){
+  var id=e.target.getAttribute&&e.target.getAttribute("data-copy");
+  if(!id)return;
+  var t=document.getElementById(id).textContent;
+  try{navigator.clipboard.writeText(t);e.target.textContent="Copied"}catch(x){e.target.textContent="Select to copy"}
+  setTimeout(function(){e.target.textContent="Copy"},1500);
+});
+
+(function(){
+var CODES={"English":"en-US","Spanish":"es-ES","French":"fr-FR","German":"de-DE","Italian":"it-IT","Portuguese":"pt-PT","Dutch":"nl-NL","Papiamento":"nl-NL","Russian":"ru-RU","Arabic":"ar-SA","Hindi":"hi-IN","Bengali":"bn-BD","Chinese (Simplified)":"zh-CN","Chinese (Traditional)":"zh-TW","Japanese":"ja-JP","Korean":"ko-KR","Turkish":"tr-TR","Polish":"pl-PL","Swahili":"sw-KE","Yoruba":"yo-NG","Igbo":"ig-NG","Hausa":"ha-NG","Nigerian Pidgin":"en-NG","Indonesian":"id-ID","Vietnamese":"vi-VN","Thai":"th-TH","Greek":"el-GR","Hebrew":"he-IL","Ukrainian":"uk-UA","Swedish":"sv-SE"};
+function say(id){
+  if(!("speechSynthesis" in window)){st.className="why err";st.textContent="Read-aloud isn’t supported in this browser.";return}
+  var text=document.getElementById(id).textContent;if(!text)return;
+  var name=id==="trn"?tgt.value:(src.value==="Auto-detect"?document.getElementById("detected").textContent.replace("Detected: ",""):src.value);
+  var lang=CODES[name]||"";
+  speechSynthesis.cancel();
+  var u=new SpeechSynthesisUtterance(text);
+  if(lang){
+    u.lang=lang;
+    var vs=speechSynthesis.getVoices(),pre=lang.slice(0,2);
+    var ok=vs.length===0||vs.some(function(v){return v.lang.toLowerCase().indexOf(pre)===0});
+    if(!ok){st.className="why err";st.textContent="This device has no "+name+" voice installed.";return}
+  }
+  st.className="why";
+  st.textContent=name==="Papiamento"?"Using a Dutch voice for Papiamento, so the pronunciation may sound off.":"";
+  speechSynthesis.speak(u);
+}
+var SR=window.SpeechRecognition||window.webkitSpeechRecognition,mic=document.getElementById("mic"),rec=null,on=false;
+if(!SR)mic.classList.add("hidden");
+mic.onclick=function(){
+  if(on){if(rec)rec.stop();return}
+  var name=src.value,lang=name==="Auto-detect"?(navigator.language||"en-US"):(CODES[name]||"en-US");
+  rec=new SR();rec.lang=lang;rec.interimResults=true;rec.continuous=true;
+  var base=inp.value?inp.value.replace(/\s*$/," "):"";
+  rec.onresult=function(e){var t="";for(var i=0;i<e.results.length;i++)t+=e.results[i][0].transcript;inp.value=base+t};
+  rec.onerror=function(e){st.className="why err";st.textContent=(e.error==="not-allowed"||e.error==="service-not-allowed")?"Microphone access is blocked. You can still type your text.":"Voice input stopped ("+e.error+")."};
+  rec.onend=function(){on=false;mic.textContent="Speak";mic.classList.remove("rec")};
+  try{
+    rec.start();on=true;mic.textContent="Stop";mic.classList.add("rec");st.className="why";
+    st.textContent=name==="Auto-detect"?"Listening in "+lang+". Pick a source language to dictate in another one.":name==="Papiamento"?"Listening with a Dutch model. Browsers don’t support Papiamento dictation, so expect errors.":"Listening…";
+  }catch(x){}
+};
+document.addEventListener("click",function(e){var id=e.target.getAttribute&&e.target.getAttribute("data-say");if(id)say(id)});
+})();
+</script>
+</body>
+</html>
+
+{
+  "name": "Tikitaka",
+  "short_name": "Tikitaka",
+  "description": "Accurate translator",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
